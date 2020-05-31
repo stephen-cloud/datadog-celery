@@ -1,0 +1,41 @@
+version: "3"
+services:
+  web:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+     - "5001:5001"
+    depends_on:
+      - redis
+  worker:
+    build:
+      context: celery-queue
+      dockerfile: Dockerfile
+    depends_on:
+      - redis
+  monitor:
+    build:
+      context: celery-queue
+      dockerfile: Dockerfile
+    ports:
+     - "5555:5555"
+    entrypoint: flower
+    command:  -A tasks --port=5555 --broker=redis://redis:6379/0
+    depends_on:
+      - redis
+  redis:
+    image: redis
+  datadog:
+    build: datadog
+    links:
+     - redis # ensures that redis is a host that the container can find
+     - web # ensures that the web app can send metrics
+    environment:
+     - DD_API_KEY=f6ff16992e2b02141c139bf804021ae5
+     - DD_LOG_LEVEL=debug
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - /proc/:/host/proc/:ro
+     - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
